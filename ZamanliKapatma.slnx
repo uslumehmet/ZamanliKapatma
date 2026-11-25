@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ZamanliKapatma.Core/ZamanliKapatma.Core.csproj" />
+    <Project Path="src/ZamanliKapatma/ZamanliKapatma.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ZamanliKapatma.Tests/ZamanliKapatma.Tests.csproj" />
+  </Folder>
+</Solution>

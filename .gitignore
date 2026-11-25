@@ -1,0 +1,16 @@
+# Derleme çıktıları
+bin/
+obj/
+publish/
+TestResults/
+
+# Editör / IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Yapay zekâ asistanı yerel ayar dosyaları
+.claude/
+CLAUDE.md
