@@ -33,7 +33,7 @@ internal sealed class MainForm : Form
 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        Text = "Zamanlı Kapatma";
+        Text = TrayApplicationContext.AppTitle;
         Icon = icon;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -63,8 +63,8 @@ internal sealed class MainForm : Form
         }
 
         // Ne zaman? (iki seçenek aynı tabloda olduğu için radyo butonları otomatik gruplanır)
-        _afterRadio = new RadioButton { Text = "Şu kadar süre sonra:", AutoSize = true, Anchor = AnchorStyles.Left };
-        _atRadio = new RadioButton { Text = "Şu saatte:", AutoSize = true, Anchor = AnchorStyles.Left };
+        _afterRadio = new RadioButton { Text = Lang.T("Şu kadar süre sonra:", "After:"), AutoSize = true, Anchor = AnchorStyles.Left };
+        _atRadio = new RadioButton { Text = Lang.T("Şu saatte:", "At:"), AutoSize = true, Anchor = AnchorStyles.Left };
         _hoursBox = new NumericUpDown { Maximum = 99, Width = 56, TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
         _minutesBox = new NumericUpDown { Maximum = 59, Width = 56, TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
         _timePicker = new DateTimePicker
@@ -77,7 +77,7 @@ internal sealed class MainForm : Form
         };
         _dailyCheck = new CheckBox
         {
-            Text = "Her gün tekrarla",
+            Text = Lang.T("Her gün tekrarla", "Repeat daily"),
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(12, 3, 3, 3),
@@ -85,28 +85,28 @@ internal sealed class MainForm : Form
 
         var whenTable = new TableLayoutPanel { AutoSize = true, ColumnCount = 2, Margin = new Padding(0) };
         whenTable.Controls.Add(_afterRadio, 0, 0);
-        whenTable.Controls.Add(Row(_hoursBox, InlineLabel("saat"), _minutesBox, InlineLabel("dakika")), 1, 0);
+        whenTable.Controls.Add(Row(_hoursBox, InlineLabel(Lang.T("saat", "hours")), _minutesBox, InlineLabel(Lang.T("dakika", "minutes"))), 1, 0);
         whenTable.Controls.Add(_atRadio, 0, 1);
         whenTable.Controls.Add(Row(_timePicker, _dailyCheck), 1, 1);
-        whenTable.Controls.Add(InlineLabel("Hızlı seç:"), 0, 2);
+        whenTable.Controls.Add(InlineLabel(Lang.T("Hızlı seç:", "Quick pick:")), 0, 2);
         whenTable.Controls.Add(Row(QuickButton(15), QuickButton(30), QuickButton(60), QuickButton(120)), 1, 2);
 
         // Seçenekler
-        _forceCheck = new CheckBox { Text = "Açık uygulamaları zorla kapat (kaydedilmemiş işler kaybolabilir)", AutoSize = true };
-        _startupCheck = new CheckBox { Text = "Windows açılışında otomatik başlat", AutoSize = true };
+        _forceCheck = new CheckBox { Text = Lang.T("Açık uygulamaları zorla kapat (kaydedilmemiş işler kaybolabilir)", "Force-close open apps (unsaved work may be lost)"), AutoSize = true };
+        _startupCheck = new CheckBox { Text = Lang.T("Windows açılışında otomatik başlat", "Start automatically with Windows"), AutoSize = true };
 
         // Durum ve butonlar
         _statusLabel = new Label { AutoSize = true, Font = _statusFont, Margin = new Padding(3, 14, 3, 6) };
-        _startButton = new Button { Text = "Zamanla", AutoSize = true };
-        _toggleButton = new Button { Text = "Devre dışı bırak", AutoSize = true };
-        _cancelButton = new Button { Text = "Planı iptal et", AutoSize = true };
+        _startButton = new Button { Text = Lang.T("Zamanla", "Schedule"), AutoSize = true };
+        _toggleButton = new Button { Text = Lang.T("Devre dışı bırak", "Disable"), AutoSize = true };
+        _cancelButton = new Button { Text = Lang.T("Planı iptal et", "Cancel plan"), AutoSize = true };
 
         _root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, AutoSize = true };
-        _root.Controls.Add(Header("Ne yapılsın?", first: true));
+        _root.Controls.Add(Header(Lang.T("Ne yapılsın?", "What should happen?"), first: true));
         _root.Controls.Add(_actionBox);
-        _root.Controls.Add(Header("Ne zaman?"));
+        _root.Controls.Add(Header(Lang.T("Ne zaman?", "When?")));
         _root.Controls.Add(whenTable);
-        _root.Controls.Add(Header("Seçenekler"));
+        _root.Controls.Add(Header(Lang.T("Seçenekler", "Options")));
         _root.Controls.Add(_forceCheck);
         _root.Controls.Add(_startupCheck);
         _root.Controls.Add(_statusLabel);
@@ -147,7 +147,7 @@ internal sealed class MainForm : Form
 
     public void RefreshStatus(DateTime now)
     {
-        _statusLabel.Text = "Durum: " + _scheduler.Describe(now);
+        _statusLabel.Text = Lang.T("Durum: ", "Status: ") + _scheduler.Describe(now);
         _statusLabel.ForeColor = _scheduler.Status switch
         {
             SchedulerStatus.Running => Color.FromArgb(37, 99, 235),
@@ -155,7 +155,7 @@ internal sealed class MainForm : Form
             _ => SystemColors.GrayText,
         };
 
-        _toggleButton.Text = _scheduler.Status == SchedulerStatus.Paused ? "Etkinleştir" : "Devre dışı bırak";
+        _toggleButton.Text = _scheduler.Status == SchedulerStatus.Paused ? Lang.T("Etkinleştir", "Enable") : Lang.T("Devre dışı bırak", "Disable");
         _toggleButton.Enabled = _scheduler.Status != SchedulerStatus.Idle;
         _cancelButton.Enabled = _scheduler.Status != SchedulerStatus.Idle;
 
@@ -222,7 +222,7 @@ internal sealed class MainForm : Form
         var settings = ReadSettings();
         if (settings.Mode == ScheduleMode.AfterDuration && settings.Duration < TimeSpan.FromMinutes(1))
         {
-            MessageBox.Show(this, "Süre en az 1 dakika olmalı.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, Lang.T("Süre en az 1 dakika olmalı.", "The duration must be at least 1 minute."), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
@@ -230,7 +230,9 @@ internal sealed class MainForm : Form
         {
             var answer = MessageBox.Show(
                 this,
-                "Her gün tekrarlanan planın çalışması için uygulamanın Windows açılışında başlaması gerekir.\n\nOtomatik başlatma açılsın mı?",
+                Lang.T(
+                    "Her gün tekrarlanan planın çalışması için uygulamanın Windows açılışında başlaması gerekir.\n\nOtomatik başlatma açılsın mı?",
+                    "A daily plan only works if the app starts with Windows.\n\nTurn on automatic startup?"),
                 Text,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
@@ -290,7 +292,7 @@ internal sealed class MainForm : Form
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {
-            MessageBox.Show(this, "Otomatik başlatma ayarı değiştirilemedi: " + ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(this, Lang.T("Otomatik başlatma ayarı değiştirilemedi: ", "Could not change the startup setting: ") + ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
             return false;
         }
     }

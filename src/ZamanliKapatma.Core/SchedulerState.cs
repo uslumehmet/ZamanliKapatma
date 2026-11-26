@@ -7,4 +7,7 @@ public sealed class SchedulerState
     public SchedulerStatus Status { get; set; }
     public DateTime? Target { get; set; }
     public TimeSpan? PausedRemaining { get; set; }
+
+    /// <summary>Arayüz dili; boşsa Windows'un diline göre seçilir.</summary>
+    public AppLanguage? Language { get; set; }
 }

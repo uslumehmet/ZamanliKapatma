@@ -215,18 +215,20 @@ public sealed class Scheduler
         switch (Status)
         {
             case SchedulerStatus.Running when Target is { } target:
-                string text = $"{name}: {ScheduleText.When(target, now)} ({DurationText.Format(target - now)} kaldı)";
-                return Settings.IsRecurring ? text + " · her gün" : text;
+                string left = DurationText.Format(target - now);
+                string text = $"{name}: {ScheduleText.When(target, now)} ({Lang.T($"{left} kaldı", $"{left} left")})";
+                return Settings.IsRecurring ? text + Lang.T(" · her gün", " · daily") : text;
 
             case SchedulerStatus.Paused when PausedRemaining is { } remaining:
-                return $"{name}: devre dışı ({DurationText.Format(remaining)} kalmıştı)";
+                string was = DurationText.Format(remaining);
+                return Lang.T($"{name}: devre dışı ({was} kalmıştı)", $"{name}: disabled ({was} was left)");
 
             case SchedulerStatus.Paused:
-                string daily = Settings.RepeatDaily ? "her gün " : string.Empty;
-                return $"{name}: devre dışı ({daily}{ScheduleText.Clock(Settings.TimeOfDay)})";
+                string daily = Settings.RepeatDaily ? Lang.T("her gün ", "daily ") : string.Empty;
+                return $"{name}: {Lang.T("devre dışı", "disabled")} ({daily}{ScheduleText.Clock(Settings.TimeOfDay)})";
 
             default:
-                return "Planlanmış işlem yok";
+                return Lang.T("Planlanmış işlem yok", "Nothing scheduled");
         }
     }
 

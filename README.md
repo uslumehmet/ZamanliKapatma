@@ -13,6 +13,7 @@ Bilgisayarı belirli bir süre sonra ya da belirli bir saatte kapatan, yeniden b
 - Her gün aynı saatte tekrarlama
 - Simgeye sağ tıklayarak zamanlayıcıyı durdurma ve yeniden başlatma
 - İşlemden 1 dakika önce uyarı (ertelemek veya iptal etmek için)
+- Türkçe ve İngilizce arayüz (simgeye sağ tık → **Dil / Language**)
 
 ## Kullanım
 
@@ -34,6 +35,10 @@ dotnet test
 - `src/ZamanliKapatma`: pencereler ve simge alanı
 - `src/ZamanliKapatma.Core`: zamanlama mantığı
 - `tests`: birim testleri
+
+## English
+
+A small Windows tray app that shuts down, restarts, puts to sleep or signs out your computer after a set time or at a set clock time, optionally every day. You get a one-minute warning so you can snooze or cancel. Switch the language from the tray menu (**Dil / Language**). [Download ZamanliKapatma.exe](https://github.com/uslumehmet/ZamanliKapatma/releases/latest/download/ZamanliKapatma.exe), no installation needed.
 
 ## Lisans
 

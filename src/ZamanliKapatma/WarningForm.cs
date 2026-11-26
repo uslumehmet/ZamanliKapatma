@@ -23,7 +23,7 @@ internal sealed class WarningForm : Form
 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        Text = "Zamanlı Kapatma";
+        Text = TrayApplicationContext.AppTitle;
         Icon = icon;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         ControlBox = false;
@@ -47,11 +47,16 @@ internal sealed class WarningForm : Form
             ForeColor = Color.FromArgb(220, 38, 38),
             Margin = new Padding(3, 10, 3, 6),
         };
-        var hint = new Label { Text = "Açık dosyalarınızı kaydetmeyi unutmayın.", AutoSize = true };
+        var hint = new Label { Text = Lang.T("Açık dosyalarınızı kaydetmeyi unutmayın.", "Don't forget to save your open files."), AutoSize = true };
 
-        var snoozeButton = new Button { Text = $"{DurationText.Format(snoozeDelay)} ertele", AutoSize = true };
-        var skipButton = new Button { Text = scheduler.Settings.IsRecurring ? "Bugünlük atla" : "İptal et", AutoSize = true };
-        var nowButton = new Button { Text = "Şimdi yap", AutoSize = true };
+        string snoozeText = DurationText.Format(snoozeDelay);
+        var snoozeButton = new Button { Text = Lang.T($"{snoozeText} ertele", $"Snooze {snoozeText}"), AutoSize = true };
+        var skipButton = new Button
+        {
+            Text = scheduler.Settings.IsRecurring ? Lang.T("Bugünlük atla", "Skip today") : Lang.T("İptal et", "Cancel"),
+            AutoSize = true,
+        };
+        var nowButton = new Button { Text = Lang.T("Şimdi yap", "Do it now"), AutoSize = true };
         snoozeButton.Click += (_, _) => snooze();
         skipButton.Click += (_, _) => skip();
         nowButton.Click += (_, _) => executeNow();
@@ -86,7 +91,7 @@ internal sealed class WarningForm : Form
         }
 
         int seconds = (int)Math.Max(0, Math.Ceiling((target - now).TotalSeconds));
-        _countdownLabel.Text = $"{seconds} saniye";
+        _countdownLabel.Text = Lang.T($"{seconds} saniye", $"{seconds} seconds");
     }
 
     protected override void OnLoad(EventArgs e)

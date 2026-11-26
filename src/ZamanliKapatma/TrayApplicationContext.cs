@@ -9,7 +9,6 @@ namespace ZamanliKapatma;
 /// </summary>
 internal sealed class TrayApplicationContext : ApplicationContext
 {
-    private const string AppName = "Zamanlı Kapatma";
     private const int MaxTooltipLength = 127;
     private static readonly int[] QuickMinutes = [15, 30, 60, 120, 180];
     private static readonly TimeSpan SnoozeDelay = TimeSpan.FromMinutes(10);
@@ -26,10 +25,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly NotifyIcon _trayIcon;
     private readonly ContextMenuStrip _menu;
     private readonly Font _boldMenuFont;
-    private readonly ToolStripMenuItem _statusItem;
-    private readonly ToolStripMenuItem _toggleItem;
-    private readonly ToolStripMenuItem _cancelItem;
-    private readonly ToolStripMenuItem _startupItem;
+    private readonly ToolStripMenuItem _statusItem = new() { Enabled = false };
+    private readonly ToolStripMenuItem _toggleItem = new();
+    private readonly ToolStripMenuItem _cancelItem = new();
+    private readonly ToolStripMenuItem _startupItem = new();
     private readonly System.Windows.Forms.Timer _timer;
     private readonly EventWaitHandle _showEvent;
     private readonly RegisteredWaitHandle _showWait;
@@ -43,36 +42,25 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private bool _executing;
 
+    /// <summary>Uygulamanın o anki dildeki adı.</summary>
+    internal static string AppTitle => Lang.T("Zamanlı Kapatma", "Scheduled Shutdown");
+
     public TrayApplicationContext(bool startHidden)
     {
         _ui = new WindowsFormsSynchronizationContext();
         var savedState = _store.Load();
         bool isFirstRun = savedState is null;
+        Lang.Current = savedState?.Language ?? Lang.Detect();
         _scheduler = Scheduler.FromState(savedState, DateTime.Now);
-        _store.Save(_scheduler.ToState());
+        SaveState();
 
         _menu = new ContextMenuStrip();
         _boldMenuFont = new Font(_menu.Font, FontStyle.Bold);
 
-        _statusItem = new ToolStripMenuItem { Enabled = false };
-        _toggleItem = new ToolStripMenuItem(string.Empty, null, (_, _) => _scheduler.Toggle(DateTime.Now));
-        _cancelItem = new ToolStripMenuItem("Planı iptal et", null, (_, _) => _scheduler.Cancel());
-        _startupItem = new ToolStripMenuItem("Windows ile başlat", null, (_, _) => ToggleStartup());
-        var openItem = new ToolStripMenuItem("Zamanla...", null, (_, _) => ShowMainWindow()) { Font = _boldMenuFont };
-        var exitItem = new ToolStripMenuItem("Çıkış", null, (_, _) => ExitApplication());
-
-        _menu.Items.AddRange(new ToolStripItem[]
-        {
-            _statusItem,
-            new ToolStripSeparator(),
-            _toggleItem,
-            CreateQuickMenu(),
-            openItem,
-            _cancelItem,
-            new ToolStripSeparator(),
-            _startupItem,
-            exitItem,
-        });
+        _toggleItem.Click += (_, _) => _scheduler.Toggle(DateTime.Now);
+        _cancelItem.Click += (_, _) => _scheduler.Cancel();
+        _startupItem.Click += (_, _) => ToggleStartup();
+        BuildMenu();
         _menu.Opening += (_, _) =>
         {
             _startupItem.Checked = StartupManager.IsEnabled();
@@ -82,7 +70,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _trayIcon = new NotifyIcon
         {
             Icon = _idleIcon,
-            Text = AppName,
+            Text = AppTitle,
             ContextMenuStrip = _menu,
             Visible = true,
         };
@@ -116,7 +104,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _scheduler.Changed += (_, _) =>
         {
-            _store.Save(_scheduler.ToState());
+            SaveState();
             RefreshUi(DateTime.Now);
         };
 
@@ -129,16 +117,90 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
+    /// <summary>Plan durumunu, seçilen dille birlikte diske yazar.</summary>
+    private void SaveState()
+    {
+        var state = _scheduler.ToState();
+        state.Language = Lang.Current;
+        _store.Save(state);
+    }
+
+    /// <summary>Menüyü o anki dilde (yeniden) kurar.</summary>
+    private void BuildMenu()
+    {
+        _cancelItem.Text = Lang.T("Planı iptal et", "Cancel plan");
+        _startupItem.Text = Lang.T("Windows ile başlat", "Start with Windows");
+
+        var languageItem = new ToolStripMenuItem("Dil / Language");
+        foreach (var (language, name) in new[] { (AppLanguage.Turkish, "Türkçe"), (AppLanguage.English, "English") })
+        {
+            languageItem.DropDownItems.Add(new ToolStripMenuItem(name, null, (_, _) => ChangeLanguage(language))
+            {
+                Checked = Lang.Current == language,
+            });
+        }
+
+        var persistent = new ToolStripItem[] { _statusItem, _toggleItem, _cancelItem, _startupItem };
+        var oldItems = _menu.Items.Cast<ToolStripItem>().Where(i => !persistent.Contains(i)).ToList();
+        _menu.Items.Clear();
+        foreach (var item in oldItems)
+        {
+            item.Dispose();
+        }
+
+        _menu.Items.AddRange(new ToolStripItem[]
+        {
+            _statusItem,
+            new ToolStripSeparator(),
+            _toggleItem,
+            CreateQuickMenu(),
+            new ToolStripMenuItem(Lang.T("Zamanla...", "Schedule..."), null, (_, _) => ShowMainWindow()) { Font = _boldMenuFont },
+            _cancelItem,
+            new ToolStripSeparator(),
+            languageItem,
+            _startupItem,
+            new ToolStripMenuItem(Lang.T("Çıkış", "Exit"), null, (_, _) => ExitApplication()),
+        });
+    }
+
+    private void ChangeLanguage(AppLanguage language)
+    {
+        if (Lang.Current == language)
+        {
+            return;
+        }
+
+        Lang.Current = language;
+        SaveState();
+        BuildMenu();
+
+        // Açık pencereler eski dilde kalmasın: ana pencereyi yeni dilde yeniden oluştur.
+        if (_mainForm is { IsDisposed: false } old)
+        {
+            bool wasVisible = old.Visible;
+            _mainForm = null;
+            old.Dispose();
+            if (wasVisible)
+            {
+                ShowMainWindow();
+            }
+        }
+
+        RefreshUi(DateTime.Now);
+    }
+
     private ToolStripMenuItem CreateQuickMenu()
     {
-        var quickMenu = new ToolStripMenuItem("Hızlı zamanla");
+        var quickMenu = new ToolStripMenuItem(Lang.T("Hızlı zamanla", "Quick schedule"));
         foreach (var action in new[] { PowerAction.Shutdown, PowerAction.Restart, PowerAction.Sleep })
         {
             var actionItem = new ToolStripMenuItem(action.DisplayName());
             foreach (int minutes in QuickMinutes)
             {
                 var duration = TimeSpan.FromMinutes(minutes);
-                string label = minutes < 60 ? $"{minutes} dakika sonra" : $"{minutes / 60} saat sonra";
+                string label = minutes < 60
+                    ? Lang.T($"{minutes} dakika sonra", $"in {minutes} minutes")
+                    : Lang.T($"{minutes / 60} saat sonra", minutes == 60 ? "in 1 hour" : $"in {minutes / 60} hours");
                 actionItem.DropDownItems.Add(label, null, (_, _) => StartQuick(action, duration));
             }
 
@@ -163,7 +225,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _mainForm.LoadSettings(settings);
         }
 
-        _trayIcon.ShowBalloonTip(3000, AppName, _scheduler.Describe(DateTime.Now), ToolTipIcon.Info);
+        _trayIcon.ShowBalloonTip(3000, AppTitle, _scheduler.Describe(DateTime.Now), ToolTipIcon.Info);
     }
 
     private void OnTick()
@@ -181,12 +243,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
             case TickResult.Missed:
                 string next = _scheduler.Status == SchedulerStatus.Running
-                    ? " Sıradaki: " + _scheduler.Describe(now)
+                    ? Lang.T(" Sıradaki: ", " Next: ") + _scheduler.Describe(now)
                     : string.Empty;
                 _trayIcon.ShowBalloonTip(
                     8000,
-                    AppName,
-                    "Planlanan zaman bilgisayar kapalı ya da uykudayken geçti; işlem yapılmadı." + next,
+                    AppTitle,
+                    Lang.T(
+                        "Planlanan zaman bilgisayar kapalı ya da uykudayken geçti; işlem yapılmadı.",
+                        "The scheduled time passed while the computer was off or asleep, so nothing was done.") + next,
                     ToolTipIcon.Warning);
                 break;
         }
@@ -251,7 +315,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            _trayIcon.ShowBalloonTip(8000, AppName, "İşlem gerçekleştirilemedi: " + ex.Message, ToolTipIcon.Error);
+            _trayIcon.ShowBalloonTip(8000, AppTitle, Lang.T("İşlem gerçekleştirilemedi: ", "The action failed: ") + ex.Message, ToolTipIcon.Error);
         }
         finally
         {
@@ -265,9 +329,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _statusItem.Text = status;
         _toggleItem.Text = _scheduler.Status switch
         {
-            SchedulerStatus.Running => "Devre dışı bırak",
-            SchedulerStatus.Paused => "Etkinleştir",
-            _ => $"Etkinleştir ({ScheduleText.Summary(_scheduler.Settings)})",
+            SchedulerStatus.Running => Lang.T("Devre dışı bırak", "Disable"),
+            SchedulerStatus.Paused => Lang.T("Etkinleştir", "Enable"),
+            _ => $"{Lang.T("Etkinleştir", "Enable")} ({ScheduleText.Summary(_scheduler.Settings)})",
         };
         _cancelItem.Enabled = _scheduler.Status != SchedulerStatus.Idle;
 
@@ -282,7 +346,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _trayIcon.Icon = icon;
         }
 
-        string tooltip = $"{AppName}\n{status}";
+        string tooltip = $"{AppTitle}\n{status}";
         if (tooltip.Length > MaxTooltipLength)
         {
             tooltip = tooltip[..MaxTooltipLength];
@@ -352,8 +416,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _trayIcon.ShowBalloonTip(
             5000,
-            AppName,
-            "Uygulama arka planda çalışmaya devam ediyor. Simgeye görev çubuğundaki gizli simgeler (^) bölümünden ulaşabilirsiniz.",
+            AppTitle,
+            Lang.T(
+                "Uygulama arka planda çalışmaya devam ediyor. Simgeye görev çubuğundaki gizli simgeler (^) bölümünden ulaşabilirsiniz.",
+                "The app keeps running in the background. You can find its icon under hidden icons (^) on the taskbar."),
             ToolTipIcon.Info);
     }
 
@@ -365,7 +431,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {
-            _trayIcon.ShowBalloonTip(5000, AppName, "Otomatik başlatma ayarı değiştirilemedi: " + ex.Message, ToolTipIcon.Error);
+            _trayIcon.ShowBalloonTip(
+                5000,
+                AppTitle,
+                Lang.T("Otomatik başlatma ayarı değiştirilemedi: ", "Could not change the startup setting: ") + ex.Message,
+                ToolTipIcon.Error);
         }
 
         if (_mainForm is { IsDisposed: false })
@@ -403,8 +473,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (_scheduler.Status == SchedulerStatus.Running)
         {
             var answer = MessageBox.Show(
-                "Planlanmış bir işlem var. Uygulama kapalıyken bu işlem gerçekleşmez.\n\nYine de çıkılsın mı?",
-                AppName,
+                Lang.T(
+                    "Planlanmış bir işlem var. Uygulama kapalıyken bu işlem gerçekleşmez.\n\nYine de çıkılsın mı?",
+                    "Something is scheduled. It will not happen while the app is closed.\n\nExit anyway?"),
+                AppTitle,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
             if (answer != DialogResult.Yes)
@@ -434,6 +506,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _trayIcon.Visible = false;
             _trayIcon.Dispose();
             _menu.Dispose();
+            _statusItem.Dispose();
+            _toggleItem.Dispose();
+            _cancelItem.Dispose();
+            _startupItem.Dispose();
             _boldMenuFont.Dispose();
             _warningForm?.Dispose();
             _mainForm?.Dispose();
