@@ -36,13 +36,19 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private MainForm? _mainForm;
     private WarningForm? _warningForm;
-    private bool _hideHintShown;
+    private static readonly string HideHintMarkerPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "ZamanliKapatma",
+        "tray-hint-shown");
+
     private bool _executing;
 
     public TrayApplicationContext(bool startHidden)
     {
         _ui = new WindowsFormsSynchronizationContext();
-        _scheduler = Scheduler.FromState(_store.Load(), DateTime.Now);
+        var savedState = _store.Load();
+        bool isFirstRun = savedState is null;
+        _scheduler = Scheduler.FromState(savedState, DateTime.Now);
         _store.Save(_scheduler.ToState());
 
         _menu = new ContextMenuStrip();
@@ -99,6 +105,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
             null,
             Timeout.Infinite,
             executeOnlyOnce: false);
+
+        if (isFirstRun)
+        {
+            // İlk açılışta otomatik başlatmayı aç: bilgisayar yeniden açıldığında simge tepside hazır olsun.
+            TryEnableStartup();
+        }
 
         TryRefreshStartupPath();
 
@@ -322,12 +334,22 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void ShowHideHintOnce()
     {
-        if (_hideHintShown)
+        // Bu ipucu yalnızca bir kez gösterilir; her açılışta tekrar çıkması rahatsız edici olur.
+        if (File.Exists(HideHintMarkerPath))
         {
             return;
         }
 
-        _hideHintShown = true;
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(HideHintMarkerPath)!);
+            File.WriteAllText(HideHintMarkerPath, string.Empty);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // İşaret dosyası yazılamazsa ipucu bir sonraki oturumda yeniden görünebilir; kritik değil.
+        }
+
         _trayIcon.ShowBalloonTip(
             5000,
             AppName,
@@ -349,6 +371,18 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (_mainForm is { IsDisposed: false })
         {
             _mainForm.RefreshStartupCheck();
+        }
+    }
+
+    private static void TryEnableStartup()
+    {
+        try
+        {
+            StartupManager.SetEnabled(true);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            // Kritik değil: kullanıcı menüden "Windows ile başlat"ı yine açabilir.
         }
     }
 
