@@ -1,5 +1,7 @@
 # Zamanlı Kapatma
 
+**Türkçe** | [English](README.en.md)
+
 Bilgisayarı belirli bir süre sonra ya da belirli bir saatte kapatan, yeniden başlatan veya uyku moduna alan küçük bir Windows uygulaması. Görev çubuğunun sağındaki simge alanında çalışır.
 
 **[ZamanliKapatma.exe'yi indir](https://github.com/uslumehmet/ZamanliKapatma/releases/latest/download/ZamanliKapatma.exe)** · Windows 10 / 11 · Kurulum gerekmez
@@ -35,10 +37,6 @@ dotnet test
 - `src/ZamanliKapatma`: pencereler ve simge alanı
 - `src/ZamanliKapatma.Core`: zamanlama mantığı
 - `tests`: birim testleri
-
-## English
-
-A small Windows tray app that shuts down, restarts, puts to sleep or signs out your computer after a set time or at a set clock time, optionally every day. You get a one-minute warning so you can snooze or cancel. Switch the language from the tray menu (**Dil / Language**). [Download ZamanliKapatma.exe](https://github.com/uslumehmet/ZamanliKapatma/releases/latest/download/ZamanliKapatma.exe), no installation needed.
 
 ## Lisans
 
